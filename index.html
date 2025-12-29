@@ -2,128 +2,81 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
 <title>Attendance</title>
 
 <style>
-:root{
-  --glass: rgba(255,255,255,0.65);
-  --border: rgba(0,0,0,0.08);
-  --green:#34c759;
-  --red:#ff3b30;
-  --blue:#007aff;
-  --muted:#888;
-}
-
 *{box-sizing:border-box}
-
 body{
   margin:0;
-  background:#fff;
   font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#fff;
 }
 
 .app{
-  width:100%;
-  max-width:100%;
   padding:16px;
+  max-width:720px;
+  margin:auto;
 }
 
-/* ---------- HEADER ---------- */
-h2{
-  text-align:center;
-  margin:10px 0 20px;
-  font-weight:600;
+h2{text-align:center}
+
+.glass{
+  background:rgba(255,255,255,.65);
+  backdrop-filter:blur(14px);
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:16px;
 }
 
-/* ---------- TOP BAR ---------- */
-.top{
-  display:flex;
-  gap:8px;
-  width:100%;
-}
-
-input{
-  flex:1;
+button,input{
+  font-size:16px;
   padding:14px;
   border-radius:14px;
-  border:1px solid var(--border);
-  background:var(--glass);
-  font-size:16px;
-}
-
-button{
-  padding:14px;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background:var(--glass);
-  font-size:16px;
-  cursor:pointer;
-  backdrop-filter: blur(14px);
-  transition:transform .1s ease, box-shadow .1s ease;
+  border:1px solid rgba(0,0,0,.08);
+  background:rgba(255,255,255,.65);
 }
 
 button:active{
   transform:scale(.95);
-  box-shadow: inset 0 2px 6px rgba(0,0,0,.15);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.2);
 }
 
-/* ---------- SUBJECT CARD ---------- */
-.card{
-  margin-top:14px;
-  padding:14px;
-  border-radius:16px;
-  border:1px solid var(--border);
-  background:var(--glass);
+.top{display:flex;gap:8px}
+input{flex:1}
+
+.card{padding:14px;margin-top:14px}
+.subject{font-weight:600}
+
+.actions{display:flex;gap:8px;margin-top:8px}
+.present{color:#34c759}
+.absent{color:#ff3b30}
+.holiday{color:#ff9500}
+
+.counts{font-size:13px;color:#666;margin-top:4px}
+
+.calendar{
+  margin-top:10px;
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:4px;
+  font-size:12px;
 }
 
-.subject{
-  font-weight:600;
-  margin-bottom:6px;
+.day{
+  text-align:center;
+  padding:6px 0;
+  border-radius:8px;
 }
 
-/* ---------- COUNTS ---------- */
-.counts{
-  font-size:13px;
-  color:var(--muted);
-  margin-bottom:10px;
-}
-
-/* ---------- BUTTON ROW ---------- */
-.actions{
-  display:flex;
-  gap:8px;
-}
-
-.present{color:var(--green)}
-.absent{color:var(--red)}
-.undo{font-size:18px}
-
-/* ---------- PERCENT ---------- */
-.percent{
-  text-align:right;
-  font-size:14px;
-  font-weight:600;
-}
-
-.low{color:var(--red)}
-.ok{color:var(--green)}
-
-/* ---------- DESKTOP UPGRADE ---------- */
-@media(min-width:768px){
-  .app{
-    max-width:720px;
-    margin:auto;
-  }
-}
+.P{background:#d9fbe5}
+.A{background:#ffdede}
+.H{background:#fff1cc}
+.today{border:2px solid #007aff}
 </style>
 </head>
 
 <body>
 <div class="app">
-
 <h2>Attendance</h2>
 
 <div class="top">
@@ -132,70 +85,70 @@ button:active{
 </div>
 
 <div id="list"></div>
-
 </div>
 
 <script>
+const today = new Date().toISOString().split("T")[0];
 let data = JSON.parse(localStorage.getItem("att")) || [];
 
-function save(){
-  localStorage.setItem("att",JSON.stringify(data));
-}
+function save(){ localStorage.setItem("att",JSON.stringify(data)); }
 
 function addSubject(){
-  const name = subInput.value.trim();
+  const name=subInput.value.trim();
   if(!name) return;
-  data.push({name, p:0, a:0});
+  data.push({name, records:{}});
   subInput.value="";
-  save();
-  render();
+  save(); render();
 }
 
-function mark(i,type){
-  if(type==="p") data[i].p++;
-  if(type==="a") data[i].a++;
-  save();
-  render();
+function mark(i,val){
+  data[i].records[today]=val;
+  save(); render();
 }
 
 function undo(i){
-  if(data[i].p>0) data[i].p--;
-  else if(data[i].a>0) data[i].a--;
-  save();
-  render();
+  delete data[i].records[today];
+  save(); render();
 }
 
 function render(){
   list.innerHTML="";
   data.forEach((s,i)=>{
-    const total=s.p+s.a;
-    const percent= total? ((s.p/total)*100).toFixed(1):0;
-    const status= percent<75?"low":"ok";
+    const rec=s.records;
+    let p=0,a=0;
+    Object.values(rec).forEach(v=>{
+      if(v==="P")p++;
+      if(v==="A")a++;
+    });
+
+    const total=p+a;
+    const percent= total?((p/total)*100).toFixed(1):0;
+
+    let cal="";
+    Object.keys(rec).slice(-21).forEach(d=>{
+      const cls=rec[d];
+      cal+=`<div class="day ${cls} ${d===today?'today':''}">${d.split("-")[2]}</div>`;
+    });
+
+    const todayState=rec[today];
 
     list.innerHTML+=`
-      <div class="card">
-        <div class="subject">${s.name}</div>
+    <div class="card glass">
+      <div class="subject">${s.name}</div>
+      <div class="counts">✔ ${p} &nbsp; ✖ ${a} &nbsp; ${percent}%</div>
 
-        <div class="counts">
-          ✔ ${s.p} days &nbsp;&nbsp; ✖ ${s.a} days
-        </div>
-
-        <div class="actions">
-          <button class="present" onclick="mark(${i},'p')">Present</button>
-          <button class="absent" onclick="mark(${i},'a')">Absent</button>
-          <button class="undo" onclick="undo(${i})">↶</button>
-        </div>
-
-        <div class="percent ${status}">
-          ${percent}%
-        </div>
+      <div class="actions">
+        <button class="present" onclick="mark(${i},'P')" ${todayState?'disabled':''}>Present</button>
+        <button class="absent" onclick="mark(${i},'A')" ${todayState?'disabled':''}>Absent</button>
+        <button class="holiday" onclick="mark(${i},'H')" ${todayState?'disabled':''}>Holiday</button>
+        <button onclick="undo(${i})">↶</button>
       </div>
-    `;
+
+      <div class="calendar">${cal}</div>
+    </div>`;
   });
 }
-
 render();
 </script>
-
 </body>
 </html>
