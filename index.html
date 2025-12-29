@@ -21,10 +21,7 @@ body{
   margin:auto;
 }
 
-h2{
-  text-align:center;
-  margin:10px 0 20px;
-}
+h2{text-align:center}
 
 input,button{
   font-size:16px;
@@ -36,6 +33,7 @@ input,button{
 
 button:active{
   transform:scale(.96);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.15);
 }
 
 .top{
@@ -53,9 +51,7 @@ input{flex:1}
   background:rgba(255,255,255,.65);
 }
 
-.subject{
-  font-weight:600;
-}
+.subject{font-weight:600}
 
 .count{
   font-size:13px;
@@ -66,23 +62,25 @@ input{flex:1}
 .actions{
   display:flex;
   gap:8px;
+  flex-wrap:wrap;
 }
 
 .present{color:#34c759}
 .absent{color:#ff3b30}
+.undo{font-size:18px}
 </style>
 </head>
 
 <body>
 <div class="app">
-  <h2>Attendance</h2>
+<h2>Attendance</h2>
 
-  <div class="top">
-    <input id="subjectInput" placeholder="Add subject">
-    <button id="addBtn">＋</button>
-  </div>
+<div class="top">
+  <input id="subjectInput" placeholder="Add subject">
+  <button id="addBtn">＋</button>
+</div>
 
-  <div id="list"></div>
+<div id="list"></div>
 </div>
 
 <script>
@@ -91,34 +89,56 @@ input{flex:1}
   const addBtn = document.getElementById("addBtn");
   const list = document.getElementById("list");
 
+  const today = new Date().toISOString().split("T")[0];
+
   let data = JSON.parse(localStorage.getItem("attendance")) || [];
 
   function save(){
     localStorage.setItem("attendance", JSON.stringify(data));
   }
 
+  function count(rec, val){
+    let n = 0;
+    for(const d in rec){
+      if(rec[d] === val) n++;
+    }
+    return n;
+  }
+
   function render(){
     list.innerHTML = "";
     data.forEach(function(s, i){
+      if(!s.records) s.records = {};
+
+      const p = count(s.records,"P");
+      const a = count(s.records,"A");
+      const todayMarked = s.records[today];
+
       const card = document.createElement("div");
       card.className = "card";
 
       card.innerHTML = `
         <div class="subject">${s.name}</div>
-        <div class="count">✔ ${s.p} | ✖ ${s.a}</div>
+        <div class="count">✔ ${p} days &nbsp; ✖ ${a} days</div>
         <div class="actions">
-          <button class="present">Present</button>
-          <button class="absent">Absent</button>
+          <button class="present" ${todayMarked?'disabled':''}>Present</button>
+          <button class="absent" ${todayMarked?'disabled':''}>Absent</button>
+          <button class="undo">↶</button>
         </div>
       `;
 
       card.querySelector(".present").onclick = function(){
-        s.p++;
+        s.records[today] = "P";
         save(); render();
       };
 
       card.querySelector(".absent").onclick = function(){
-        s.a++;
+        s.records[today] = "A";
+        save(); render();
+      };
+
+      card.querySelector(".undo").onclick = function(){
+        delete s.records[today];
         save(); render();
       };
 
@@ -129,7 +149,7 @@ input{flex:1}
   addBtn.onclick = function(){
     const name = input.value.trim();
     if(!name) return;
-    data.push({name:name, p:0, a:0});
+    data.push({name:name, records:{}});
     input.value="";
     save(); render();
   };
