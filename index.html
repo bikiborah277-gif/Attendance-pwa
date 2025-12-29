@@ -2,223 +2,200 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Attendance App</title>
 
-<link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>Attendance</title>
 
 <style>
 :root{
-  --glass: rgba(255,255,255,.7);
-  --border: rgba(0,0,0,.12);
+  --glass: rgba(255,255,255,0.65);
+  --border: rgba(0,0,0,0.08);
   --green:#34c759;
   --red:#ff3b30;
   --blue:#007aff;
+  --muted:#888;
 }
+
 *{box-sizing:border-box}
+
 body{
   margin:0;
-  font-family: system-ui, sans-serif;
-  background:#f2f2f7;
+  background:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
 }
-h2{text-align:center;margin:12px 0}
 
+.app{
+  width:100%;
+  max-width:100%;
+  padding:16px;
+}
+
+/* ---------- HEADER ---------- */
+h2{
+  text-align:center;
+  margin:10px 0 20px;
+  font-weight:600;
+}
+
+/* ---------- TOP BAR ---------- */
 .top{
   display:flex;
   gap:8px;
-  padding:10px;
+  width:100%;
 }
-input,button{
+
+input{
+  flex:1;
   padding:14px;
   border-radius:14px;
   border:1px solid var(--border);
-}
-button{
   background:var(--glass);
-  backdrop-filter: blur(12px);
-  cursor:pointer;
-  transition: transform .1s;
+  font-size:16px;
 }
-button:active{transform:scale(.94)}
 
-.card{
-  margin:10px;
+button{
   padding:14px;
-  border-radius:18px;
+  border-radius:14px;
+  border:1px solid var(--border);
   background:var(--glass);
+  font-size:16px;
+  cursor:pointer;
   backdrop-filter: blur(14px);
+  transition:transform .1s ease, box-shadow .1s ease;
 }
-.actions{display:flex;gap:8px;margin-top:8px}
+
+button:active{
+  transform:scale(.95);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.15);
+}
+
+/* ---------- SUBJECT CARD ---------- */
+.card{
+  margin-top:14px;
+  padding:14px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:var(--glass);
+}
+
+.subject{
+  font-weight:600;
+  margin-bottom:6px;
+}
+
+/* ---------- COUNTS ---------- */
+.counts{
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+
+/* ---------- BUTTON ROW ---------- */
+.actions{
+  display:flex;
+  gap:8px;
+}
+
 .present{color:var(--green)}
 .absent{color:var(--red)}
 .undo{font-size:18px}
 
-.percent{margin-top:6px}
+/* ---------- PERCENT ---------- */
+.percent{
+  text-align:right;
+  font-size:14px;
+  font-weight:600;
+}
+
 .low{color:var(--red)}
 .ok{color:var(--green)}
 
-#modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.4);
-  display:none;
-  justify-content:center;
-  align-items:center;
+/* ---------- DESKTOP UPGRADE ---------- */
+@media(min-width:768px){
+  .app{
+    max-width:720px;
+    margin:auto;
+  }
 }
-#box{
-  background:#fff;
-  padding:14px;
-  border-radius:14px;
-  width:95%;
-  max-width:360px;
-}
-#cal{
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:6px;
-  margin-top:8px;
-}
-.day{
-  padding:8px;
-  text-align:center;
-  border-radius:8px;
-  background:#eee;
-}
-.sun{background:#ccc}
-.p-day{background:var(--green);color:#fff}
-.a-day{background:var(--red);color:#fff}
-.h-day{background:var(--blue);color:#fff}
-.today{border:2px solid #000}
 </style>
 </head>
 
 <body>
+<div class="app">
 
 <h2>Attendance</h2>
 
 <div class="top">
-  <input id="subject" placeholder="Add subject">
+  <input id="subInput" placeholder="Add subject">
   <button onclick="addSubject()">＋</button>
-  <button onclick="markHoliday()">Holiday</button>
-  <button onclick="openCal()">📅</button>
 </div>
 
 <div id="list"></div>
 
-<div id="modal">
-  <div id="box">
-    <b id="month"></b>
-    <div id="cal"></div>
-    <button onclick="closeCal()" style="width:100%;margin-top:10px">Close</button>
-  </div>
 </div>
 
 <script>
-/* SERVICE WORKER */
-if("serviceWorker" in navigator){
-  window.addEventListener("load",()=>{
-    navigator.serviceWorker.register("service-worker.js");
-  });
-}
+let data = JSON.parse(localStorage.getItem("att")) || [];
 
-/* DOM */
-const subject=document.getElementById("subject");
-const list=document.getElementById("list");
-const modal=document.getElementById("modal");
-const cal=document.getElementById("cal");
-const month=document.getElementById("month");
-
-/* DATE (LOCAL, NO UTC BUG) */
-const today=()=>{
-  const d=new Date();
-  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-};
-
-let data=JSON.parse(localStorage.getItem("att"))||[];
-let hol=JSON.parse(localStorage.getItem("hol"))||[];
-
-const save=()=>{
+function save(){
   localStorage.setItem("att",JSON.stringify(data));
-  localStorage.setItem("hol",JSON.stringify(hol));
-};
+}
 
-/* CORE */
 function addSubject(){
-  if(!subject.value) return;
-  data.push({n:subject.value,r:{}});
-  subject.value="";
-  save();render();
-}
-function mark(i,t){
-  const d=today();
-  if(new Date().getDay()==0||hol.includes(d)) return;
-  if(data[i].r[d]) return;
-  data[i].r[d]=t;
-  save();render();
-}
-function undo(i){
-  const d=today();
-  delete data[i].r[d];
-  hol=hol.filter(x=>x!==d);
-  save();render();
-}
-function markHoliday(){
-  const d=today();
-  if(!hol.includes(d)) hol.push(d);
-  save();render();
+  const name = subInput.value.trim();
+  if(!name) return;
+  data.push({name, p:0, a:0});
+  subInput.value="";
+  save();
+  render();
 }
 
-/* UI */
+function mark(i,type){
+  if(type==="p") data[i].p++;
+  if(type==="a") data[i].a++;
+  save();
+  render();
+}
+
+function undo(i){
+  if(data[i].p>0) data[i].p--;
+  else if(data[i].a>0) data[i].a--;
+  save();
+  render();
+}
+
 function render(){
   list.innerHTML="";
   data.forEach((s,i)=>{
-    const p=Object.values(s.r).filter(x=>x=="p").length;
-    const a=Object.values(s.r).filter(x=>x=="a").length;
-    const t=p+a;
-    const per=t?((p/t)*100).toFixed(1):0;
+    const total=s.p+s.a;
+    const percent= total? ((s.p/total)*100).toFixed(1):0;
+    const status= percent<75?"low":"ok";
+
     list.innerHTML+=`
       <div class="card">
-        <b>${s.n}</b>
+        <div class="subject">${s.name}</div>
+
+        <div class="counts">
+          ✔ ${s.p} days &nbsp;&nbsp; ✖ ${s.a} days
+        </div>
+
         <div class="actions">
           <button class="present" onclick="mark(${i},'p')">Present</button>
           <button class="absent" onclick="mark(${i},'a')">Absent</button>
           <button class="undo" onclick="undo(${i})">↶</button>
         </div>
-        <div class="percent ${per<75?'low':'ok'}">${per}%</div>
-      </div>`;
+
+        <div class="percent ${status}">
+          ${percent}%
+        </div>
+      </div>
+    `;
   });
-}
-
-/* CALENDAR */
-function openCal(){genCal();modal.style.display="flex"}
-function closeCal(){modal.style.display="none"}
-
-function genCal(){
-  cal.innerHTML="";
-  const d=new Date(),y=d.getFullYear(),m=d.getMonth();
-  month.innerText=d.toLocaleString("default",{month:"long",year:"numeric"});
-  const first=new Date(y,m,1).getDay();
-  const days=new Date(y,m+1,0).getDate();
-
-  ["S","M","T","W","T","F","S"].forEach(x=>cal.innerHTML+=`<div class="day"><b>${x}</b></div>`);
-  for(let i=0;i<first;i++) cal.innerHTML+="<div></div>";
-
-  for(let i=1;i<=days;i++){
-    const dt=new Date(y,m,i);
-    const ds=`${y}-${m+1}-${i}`;
-    let c="day";
-    if(dt.getDay()==0) c+=" sun";
-    if(hol.includes(ds)) c+=" h-day";
-    data.forEach(s=>{
-      if(s.r[ds]=="p") c="day p-day";
-      if(s.r[ds]=="a") c="day a-day";
-    });
-    if(ds==today()) c+=" today";
-    cal.innerHTML+=`<div class="${c}">${i}</div>`;
-  }
 }
 
 render();
 </script>
+
 </body>
 </html>
