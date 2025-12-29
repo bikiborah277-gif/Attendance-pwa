@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
 <title>Attendance</title>
 
 <style>
 *{box-sizing:border-box}
+
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont,sans-serif;
@@ -19,136 +21,121 @@ body{
   margin:auto;
 }
 
-h2{text-align:center}
-
-.glass{
-  background:rgba(255,255,255,.65);
-  backdrop-filter:blur(14px);
-  border:1px solid rgba(0,0,0,.08);
-  border-radius:16px;
+h2{
+  text-align:center;
+  margin:10px 0 20px;
 }
 
-button,input{
+input,button{
   font-size:16px;
   padding:14px;
   border-radius:14px;
-  border:1px solid rgba(0,0,0,.08);
+  border:1px solid rgba(0,0,0,.1);
   background:rgba(255,255,255,.65);
 }
 
 button:active{
-  transform:scale(.95);
-  box-shadow:inset 0 2px 6px rgba(0,0,0,.2);
+  transform:scale(.96);
 }
 
-.top{display:flex;gap:8px}
+.top{
+  display:flex;
+  gap:8px;
+}
+
 input{flex:1}
 
-.card{padding:14px;margin-top:14px}
-.subject{font-weight:600}
+.card{
+  margin-top:14px;
+  padding:14px;
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,.08);
+  background:rgba(255,255,255,.65);
+}
 
-.actions{display:flex;gap:8px;margin-top:8px}
+.subject{
+  font-weight:600;
+}
+
+.count{
+  font-size:13px;
+  color:#666;
+  margin:6px 0;
+}
+
+.actions{
+  display:flex;
+  gap:8px;
+}
+
 .present{color:#34c759}
 .absent{color:#ff3b30}
-.holiday{color:#ff9500}
-
-.counts{font-size:13px;color:#666;margin-top:4px}
-
-.calendar{
-  margin-top:10px;
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:4px;
-  font-size:12px;
-}
-
-.day{
-  text-align:center;
-  padding:6px 0;
-  border-radius:8px;
-}
-
-.P{background:#d9fbe5}
-.A{background:#ffdede}
-.H{background:#fff1cc}
-.today{border:2px solid #007aff}
 </style>
 </head>
 
 <body>
 <div class="app">
-<h2>Attendance</h2>
+  <h2>Attendance</h2>
 
-<div class="top">
-  <input id="subInput" placeholder="Add subject">
-  <button onclick="addSubject()">＋</button>
-</div>
+  <div class="top">
+    <input id="subjectInput" placeholder="Add subject">
+    <button id="addBtn">＋</button>
+  </div>
 
-<div id="list"></div>
+  <div id="list"></div>
 </div>
 
 <script>
-const today = new Date().toISOString().split("T")[0];
-let data = JSON.parse(localStorage.getItem("att")) || [];
+(function(){
+  const input = document.getElementById("subjectInput");
+  const addBtn = document.getElementById("addBtn");
+  const list = document.getElementById("list");
 
-function save(){ localStorage.setItem("att",JSON.stringify(data)); }
+  let data = JSON.parse(localStorage.getItem("attendance")) || [];
 
-function addSubject(){
-  const name=subInput.value.trim();
-  if(!name) return;
-  data.push({name, records:{}});
-  subInput.value="";
-  save(); render();
-}
+  function save(){
+    localStorage.setItem("attendance", JSON.stringify(data));
+  }
 
-function mark(i,val){
-  data[i].records[today]=val;
-  save(); render();
-}
+  function render(){
+    list.innerHTML = "";
+    data.forEach(function(s, i){
+      const card = document.createElement("div");
+      card.className = "card";
 
-function undo(i){
-  delete data[i].records[today];
-  save(); render();
-}
+      card.innerHTML = `
+        <div class="subject">${s.name}</div>
+        <div class="count">✔ ${s.p} | ✖ ${s.a}</div>
+        <div class="actions">
+          <button class="present">Present</button>
+          <button class="absent">Absent</button>
+        </div>
+      `;
 
-function render(){
-  list.innerHTML="";
-  data.forEach((s,i)=>{
-    const rec=s.records;
-    let p=0,a=0;
-    Object.values(rec).forEach(v=>{
-      if(v==="P")p++;
-      if(v==="A")a++;
+      card.querySelector(".present").onclick = function(){
+        s.p++;
+        save(); render();
+      };
+
+      card.querySelector(".absent").onclick = function(){
+        s.a++;
+        save(); render();
+      };
+
+      list.appendChild(card);
     });
+  }
 
-    const total=p+a;
-    const percent= total?((p/total)*100).toFixed(1):0;
+  addBtn.onclick = function(){
+    const name = input.value.trim();
+    if(!name) return;
+    data.push({name:name, p:0, a:0});
+    input.value="";
+    save(); render();
+  };
 
-    let cal="";
-    Object.keys(rec).slice(-21).forEach(d=>{
-      const cls=rec[d];
-      cal+=`<div class="day ${cls} ${d===today?'today':''}">${d.split("-")[2]}</div>`;
-    });
-
-    const todayState=rec[today];
-
-    list.innerHTML+=`
-    <div class="card glass">
-      <div class="subject">${s.name}</div>
-      <div class="counts">✔ ${p} &nbsp; ✖ ${a} &nbsp; ${percent}%</div>
-
-      <div class="actions">
-        <button class="present" onclick="mark(${i},'P')" ${todayState?'disabled':''}>Present</button>
-        <button class="absent" onclick="mark(${i},'A')" ${todayState?'disabled':''}>Absent</button>
-        <button class="holiday" onclick="mark(${i},'H')" ${todayState?'disabled':''}>Holiday</button>
-        <button onclick="undo(${i})">↶</button>
-      </div>
-
-      <div class="calendar">${cal}</div>
-    </div>`;
-  });
-}
-render();
+  render();
+})();
 </script>
 </body>
 </html>
