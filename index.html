@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
 <title>Attendance</title>
 
 <style>
@@ -67,7 +66,12 @@ input{flex:1}
 
 .present{color:#34c759}
 .absent{color:#ff3b30}
+.holiday{color:#ff9500}
 .undo{font-size:18px}
+
+.disabled{
+  opacity:.5;
+}
 </style>
 </head>
 
@@ -80,6 +84,11 @@ input{flex:1}
   <button id="addBtn">＋</button>
 </div>
 
+<div class="top" style="margin-top:10px">
+  <button id="holidayBtn" class="holiday">🎉 Holiday</button>
+  <button id="undoHolidayBtn">↶ Undo Holiday</button>
+</div>
+
 <div id="list"></div>
 </div>
 
@@ -88,13 +97,17 @@ input{flex:1}
   const input = document.getElementById("subjectInput");
   const addBtn = document.getElementById("addBtn");
   const list = document.getElementById("list");
+  const holidayBtn = document.getElementById("holidayBtn");
+  const undoHolidayBtn = document.getElementById("undoHolidayBtn");
 
   const today = new Date().toISOString().split("T")[0];
 
   let data = JSON.parse(localStorage.getItem("attendance")) || [];
+  let holidays = JSON.parse(localStorage.getItem("holidays")) || {};
 
   function save(){
     localStorage.setItem("attendance", JSON.stringify(data));
+    localStorage.setItem("holidays", JSON.stringify(holidays));
   }
 
   function count(rec, val){
@@ -107,12 +120,19 @@ input{flex:1}
 
   function render(){
     list.innerHTML = "";
+
+    const isHolidayToday = !!holidays[today];
+
+    holidayBtn.disabled = isHolidayToday;
+    undoHolidayBtn.disabled = !isHolidayToday;
+
     data.forEach(function(s, i){
       if(!s.records) s.records = {};
 
       const p = count(s.records,"P");
       const a = count(s.records,"A");
       const todayMarked = s.records[today];
+      const disableAttendance = isHolidayToday || todayMarked;
 
       const card = document.createElement("div");
       card.className = "card";
@@ -120,9 +140,9 @@ input{flex:1}
       card.innerHTML = `
         <div class="subject">${s.name}</div>
         <div class="count">✔ ${p} days &nbsp; ✖ ${a} days</div>
-        <div class="actions">
-          <button class="present" ${todayMarked?'disabled':''}>Present</button>
-          <button class="absent" ${todayMarked?'disabled':''}>Absent</button>
+        <div class="actions ${disableAttendance?'disabled':''}">
+          <button class="present" ${disableAttendance?'disabled':''}>Present</button>
+          <button class="absent" ${disableAttendance?'disabled':''}>Absent</button>
           <button class="undo">↶</button>
         </div>
       `;
@@ -151,6 +171,16 @@ input{flex:1}
     if(!name) return;
     data.push({name:name, records:{}});
     input.value="";
+    save(); render();
+  };
+
+  holidayBtn.onclick = function(){
+    holidays[today] = true;
+    save(); render();
+  };
+
+  undoHolidayBtn.onclick = function(){
+    delete holidays[today];
     save(); render();
   };
 
