@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <h1>Daily Attendance Tracker</h1>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Attendance</title>
@@ -192,8 +193,12 @@ function render(){
 
     const card = document.createElement("div");
     card.className = "glass card";
-    if(percent >= 75) card.classList.add("good");
-    if(percent > 0 && percent < 75) card.classList.add("bad");
+   if (percent < 75 && percent > 0) {
+  card.classList.add("bad");
+} 
+else if (percent >= 85) {
+  card.classList.add("good");
+}
 
     const left = document.createElement("div");
     left.innerHTML = `
