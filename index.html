@@ -2,190 +2,157 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>My Attendance Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance PWA</title>
 
 <style>
-*{box-sizing:border-box}
-
+:root{
+  --p:#22c55e;
+  --a:#ef4444;
+  --h:#f59e0b;
+  --glass:rgba(255,255,255,.35);
+}
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont}
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-  background:#fff;
+  background:#f2f2f2;
+  padding:12px;
 }
-
-.app{
-  padding:16px;
-  max-width:720px;
+.card{
+  max-width:420px;
   margin:auto;
+  background:white;
+  border-radius:18px;
+  padding:16px;
 }
-
-h2{text-align:center}
-
-input,button{
-  font-size:16px;
+h2{text-align:center;margin:6px 0 12px}
+.counts{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  margin-bottom:10px;
+}
+.btns{
+  display:flex;
+  gap:10px;
+}
+button{
+  flex:1;
+  border:none;
   padding:14px;
   border-radius:14px;
-  border:1px solid rgba(0,0,0,.1);
-  background:rgba(255,255,255,.65);
+  font-weight:600;
+  backdrop-filter:blur(10px);
+  background:var(--glass);
+  box-shadow:0 8px 20px rgba(0,0,0,.12);
+  transition:.15s;
 }
-
 button:active{
-  transform:scale(.96);
-  box-shadow:inset 0 2px 6px rgba(0,0,0,.15);
+  transform:scale(.95);
+  box-shadow:inset 0 0 20px rgba(255,255,255,.4);
 }
-
-.top{
-  display:flex;
-  gap:8px;
-}
-
-input{flex:1}
-
-.card{
+#calendar{
   margin-top:14px;
-  padding:14px;
-  border-radius:16px;
-  border:1px solid rgba(0,0,0,.08);
-  background:rgba(255,255,255,.65);
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+  text-align:center;
 }
-
-.subject{font-weight:600}
-
-.count{
-  font-size:13px;
-  color:#666;
-  margin:6px 0;
+.day{
+  font-size:11px;
+  font-weight:600;
 }
-
-.actions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
+.cell{
+  padding:8px 0;
+  border-radius:10px;
+  background:#eee;
+  font-size:12px;
 }
-
-.present{color:#34c759}
-.absent{color:#ff3b30}
-.holiday{color:#ff9500}
-.undo{font-size:18px}
-
-.disabled{
-  opacity:.5;
-}
+.P{background:var(--p);color:white}
+.A{background:var(--a);color:white}
+.H{background:var(--h);color:white}
+.today{outline:2px solid #000}
 </style>
 </head>
 
 <body>
-<div class="app">
-<h2>Attendance</h2>
+<div class="card">
+  <h2 id="title"></h2>
 
-<div class="top">
-  <input id="subjectInput" placeholder="Add subject">
-  <button id="addBtn">＋</button>
-</div>
+  <div class="counts">
+    <div>Present: <b id="pc">0</b></div>
+    <div>Absent: <b id="ac">0</b></div>
+  </div>
 
-<div class="top" style="margin-top:10px">
-  <button id="holidayBtn" class="holiday">🎉 Holiday</button>
-  <button id="undoHolidayBtn">↶ Undo Holiday</button>
-</div>
+  <div class="btns">
+    <button onclick="mark('P')">Present</button>
+    <button onclick="mark('A')">Absent</button>
+    <button onclick="mark('H')">Holiday</button>
+    <button onclick="undo()">Undo</button>
+  </div>
 
-<div id="list"></div>
+  <div id="calendar"></div>
 </div>
 
 <script>
-(function(){
-  const input = document.getElementById("subjectInput");
-  const addBtn = document.getElementById("addBtn");
-  const list = document.getElementById("list");
-  const holidayBtn = document.getElementById("holidayBtn");
-  const undoHolidayBtn = document.getElementById("undoHolidayBtn");
+const attendance = JSON.parse(localStorage.getItem("attendance")||"{}");
+const today = new Date();
+const todayKey = today.toISOString().slice(0,10);
 
-  const today = new Date().toISOString().split("T")[0];
-
-  let data = JSON.parse(localStorage.getItem("attendance")) || [];
-  let holidays = JSON.parse(localStorage.getItem("holidays")) || {};
-
-  function save(){
-    localStorage.setItem("attendance", JSON.stringify(data));
-    localStorage.setItem("holidays", JSON.stringify(holidays));
-  }
-
-  function count(rec, val){
-    let n = 0;
-    for(const d in rec){
-      if(rec[d] === val) n++;
-    }
-    return n;
-  }
-
-  function render(){
-    list.innerHTML = "";
-
-    const isHolidayToday = !!holidays[today];
-
-    holidayBtn.disabled = isHolidayToday;
-    undoHolidayBtn.disabled = !isHolidayToday;
-
-    data.forEach(function(s, i){
-      if(!s.records) s.records = {};
-
-      const p = count(s.records,"P");
-      const a = count(s.records,"A");
-      const todayMarked = s.records[today];
-      const disableAttendance = isHolidayToday || todayMarked;
-
-      const card = document.createElement("div");
-      card.className = "card";
-
-      card.innerHTML = `
-        <div class="subject">${s.name}</div>
-        <div class="count">✔ ${p} days &nbsp; ✖ ${a} days</div>
-        <div class="actions ${disableAttendance?'disabled':''}">
-          <button class="present" ${disableAttendance?'disabled':''}>Present</button>
-          <button class="absent" ${disableAttendance?'disabled':''}>Absent</button>
-          <button class="undo">↶</button>
-        </div>
-      `;
-
-      card.querySelector(".present").onclick = function(){
-        s.records[today] = "P";
-        save(); render();
-      };
-
-      card.querySelector(".absent").onclick = function(){
-        s.records[today] = "A";
-        save(); render();
-      };
-
-      card.querySelector(".undo").onclick = function(){
-        delete s.records[today];
-        save(); render();
-      };
-
-      list.appendChild(card);
-    });
-  }
-
-  addBtn.onclick = function(){
-    const name = input.value.trim();
-    if(!name) return;
-    data.push({name:name, records:{}});
-    input.value="";
-    save(); render();
-  };
-
-  holidayBtn.onclick = function(){
-    holidays[today] = true;
-    save(); render();
-  };
-
-  undoHolidayBtn.onclick = function(){
-    delete holidays[today];
-    save(); render();
-  };
-
+function save(){
+  localStorage.setItem("attendance",JSON.stringify(attendance));
   render();
-})();
+}
+
+function mark(s){
+  attendance[todayKey]=s;
+  save();
+}
+function undo(){
+  delete attendance[todayKey];
+  save();
+}
+
+function render(){
+  const cal=document.getElementById("calendar");
+  cal.innerHTML="";
+
+  const y=today.getFullYear(), m=today.getMonth();
+  document.getElementById("title").textContent =
+    today.toLocaleString("default",{month:"long",year:"numeric"});
+
+  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d=>{
+    const e=document.createElement("div");
+    e.className="day"; e.textContent=d; cal.appendChild(e);
+  });
+
+  const first=new Date(y,m,1).getDay();
+  for(let i=0;i<first;i++) cal.appendChild(document.createElement("div"));
+
+  let P=0,A=0;
+  const days=new Date(y,m+1,0).getDate();
+  for(let d=1;d<=days;d++){
+    const key=new Date(y,m,d).toISOString().slice(0,10);
+    const cell=document.createElement("div");
+    cell.className="cell";
+
+    const isSun=new Date(y,m,d).getDay()===0;
+    const status=isSun?"H":attendance[key];
+
+    if(status) cell.classList.add(status);
+    if(key===todayKey) cell.classList.add("today");
+
+    if(attendance[key]==="P") P++;
+    if(attendance[key]==="A") A++;
+
+    cell.textContent=d;
+    cal.appendChild(cell);
+  }
+  document.getElementById("pc").textContent=P;
+  document.getElementById("ac").textContent=A;
+}
+
+render();
 </script>
 </body>
 </html>
