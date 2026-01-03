@@ -62,6 +62,16 @@ body{
 .a{background:#ef4444;}
 .u{background:#64748b;}
 .disabled{opacity:.4;pointer-events:none;}
+
+.subject{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+.subject-name{
+  font-weight:bold;
+}
 </style>
 </head>
 
@@ -69,60 +79,86 @@ body{
 <div class="app">
   <div class="card top">
     <strong id="dateLabel"></strong>
-    <button class="btn holiday" id="holidayBtn">Holiday</button>
+    <button class="btn" id="addSubjectBtn">+ Add Subject</button>
   </div>
 
-  <div class="card stats">
-    <span>Present: <b id="pCount">0</b></span>
-    <span>Absent: <b id="aCount">0</b></span>
-  </div>
-
-  <div class="card actions">
-    <button class="p" id="presentBtn">P</button>
-    <button class="a" id="absentBtn">A</button>
-    <button class="u" id="undoBtn">↺</button>
-  </div>
+  <div id="subjects"></div>
 </div>
 
 <script>
 const today=new Date();
 const key=today.toISOString().slice(0,10);
-let store=JSON.parse(localStorage.getItem("attendance")||"{}");
-store[key]=store[key]||{holiday:false,status:null};
-localStorage.setItem("attendance",JSON.stringify(store));
 
-const dateLabel=document.getElementById("dateLabel");
-dateLabel.textContent=today.toDateString();
+// Load data from localStorage
+let store = JSON.parse(localStorage.getItem("attendance")||"{}");
+store[key] = store[key] || { subjects: {} };
 
-const holidayBtn=document.getElementById("holidayBtn");
-const presentBtn=document.getElementById("presentBtn");
-const absentBtn=document.getElementById("absentBtn");
-const undoBtn=document.getElementById("undoBtn");
-const pCount=document.getElementById("pCount");
-const aCount=document.getElementById("aCount");
+const dateLabel = document.getElementById("dateLabel");
+dateLabel.textContent = today.toDateString();
 
-function save(){localStorage.setItem("attendance",JSON.stringify(store));}
+const subjectsDiv = document.getElementById("subjects");
+const addSubjectBtn = document.getElementById("addSubjectBtn");
 
-function render(){
-  const s=store[key];
-  holidayBtn.classList.toggle("active",s.holiday);
-  presentBtn.classList.toggle("disabled",s.status||s.holiday);
-  absentBtn.classList.toggle("disabled",s.status||s.holiday);
-  undoBtn.classList.toggle("disabled",!s.status||s.holiday);
+function save() { localStorage.setItem("attendance", JSON.stringify(store)); }
 
-  pCount.textContent = s.status==="P"?1:0;
-  aCount.textContent = s.status==="A"?1:0;
+function render() {
+  subjectsDiv.innerHTML = '';
+  const subjects = store[key].subjects;
+  for(const subj in subjects) {
+    const data = subjects[subj];
+
+    const card = document.createElement('div');
+    card.className = 'card subject';
+
+    const name = document.createElement('span');
+    name.className = 'subject-name';
+    name.textContent = subj;
+
+    const statDiv = document.createElement('div');
+    statDiv.className = 'actions';
+
+    const holidayBtn = document.createElement('button');
+    holidayBtn.className = 'btn holiday';
+    holidayBtn.textContent = 'Holiday';
+    holidayBtn.classList.toggle('active', data.holiday);
+
+    const presentBtn = document.createElement('button');
+    presentBtn.className = 'p';
+    presentBtn.textContent = 'P';
+    presentBtn.classList.toggle('disabled', data.status || data.holiday);
+
+    const absentBtn = document.createElement('button');
+    absentBtn.className = 'a';
+    absentBtn.textContent = 'A';
+    absentBtn.classList.toggle('disabled', data.status || data.holiday);
+
+    const undoBtn = document.createElement('button');
+    undoBtn.className = 'u';
+    undoBtn.textContent = '↺';
+    undoBtn.classList.toggle('disabled', !data.status || data.holiday);
+
+    // Event listeners
+    holidayBtn.onclick = () => {
+      data.holiday = !data.holiday;
+      if(data.holiday) data.status = null;
+      save(); render();
+    }
+    presentBtn.onclick = () => { data.status = 'P'; save(); render(); }
+    absentBtn.onclick = () => { data.status = 'A'; save(); render(); }
+    undoBtn.onclick = () => { data.status = null; save(); render(); }
+
+    statDiv.append(presentBtn, absentBtn, undoBtn, holidayBtn);
+    card.append(name, statDiv);
+    subjectsDiv.appendChild(card);
+  }
 }
 
-holidayBtn.onclick=()=>{
-  store[key].holiday=!store[key].holiday;
-  if(store[key].holiday)store[key].status=null;
-  save();render();
-};
-
-presentBtn.onclick=()=>{store[key].status="P";save();render();}
-absentBtn.onclick=()=>{store[key].status="A";save();render();}
-undoBtn.onclick=()=>{store[key].status=null;save();render();}
+addSubjectBtn.onclick = () => {
+  const name = prompt("Enter subject name:");
+  if(!name) return;
+  store[key].subjects[name] = { status:null, holiday:false };
+  save(); render();
+}
 
 render();
 </script>
