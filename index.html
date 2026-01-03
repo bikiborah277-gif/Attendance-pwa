@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Offline Attendance</title>
 <style>
 *{box-sizing:border-box;}
@@ -18,145 +18,171 @@ body{
   margin:auto;
   padding:16px;
 }
-.card{
-  background:rgba(255,255,255,0.08);
-  border-radius:22px;
-  padding:16px;
-  margin-bottom:16px;
-}
 .top{
   display:flex;
   justify-content:space-between;
   align-items:center;
+  margin-bottom:16px;
 }
-.btn{
-  border:none;
-  border-radius:18px;
-  padding:12px 16px;
-  font-size:15px;
-  background:rgba(255,255,255,0.15);
-  color:white;
-}
-.btn:active{transform:scale(.96);}
-.btn.holiday.active{background:#f59e0b;color:#000;}
-.stats{
+.add-subject{
   display:flex;
-  justify-content:space-between;
-  margin-top:10px;
-  font-size:14px;
+  gap:6px;
 }
-.actions{
-  display:flex;
-  justify-content:space-between;
-  margin-top:16px;
-}
-.actions button{
+.add-subject input{
   flex:1;
-  margin:0 5px;
-  padding:12px 0;
-  border-radius:18px;
   border:none;
-  font-size:16px;
+  border-radius:18px;
+  padding:10px 16px;
+  font-size:14px;
+  background:rgba(255,255,255,0.08);
+  color:white;
+  outline:none;
+  backdrop-filter: blur(8px);
 }
-.p{background:#22c55e;}
-.a{background:#ef4444;}
-.u{background:#64748b;}
-.disabled{opacity:.4;pointer-events:none;}
+.add-subject button{
+  border:none;
+  border-radius:50%;
+  width:36px; height:36px;
+  font-weight:bold;
+  font-size:18px;
+  color:white;
+  background:rgba(255,255,255,0.08);
+  cursor:pointer;
+  backdrop-filter: blur(8px);
+  transition:0.2s;
+}
+.add-subject button:hover{background:rgba(255,255,255,0.15);}
+.btn.holiday{
+  border:none;
+  border-radius:18px;
+  padding:10px 16px;
+  font-size:14px;
+  background:rgba(255,255,255,0.08);
+  color:white;
+  backdrop-filter: blur(8px);
+  cursor:pointer;
+  transition:0.2s;
+}
+.btn.holiday.active{background:#f59e0b;color:#000;}
 
-.subject{
+.subjects .card{
+  background:rgba(255,255,255,0.05);
+  border-radius:22px;
+  padding:12px 16px;
+  margin-bottom:12px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:12px;
 }
-.subject-name{
+.subject-actions button{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  margin-left:6px;
+  border:none;
   font-weight:bold;
+  font-size:14px;
+  color:white;
+  backdrop-filter: blur(8px);
+  background:rgba(255,255,255,0.08);
+  transition:0.2s;
 }
+.subject-actions button.p{background:rgba(34,197,94,0.8);}
+.subject-actions button.a{background:rgba(239,68,68,0.8);}
+.subject-actions button.u{background:rgba(100,116,139,0.8);}
+.subject-actions button.disabled{opacity:.3;pointer-events:none;}
+.subject-name{flex:1; margin-left:8px; font-weight:500;}
 </style>
 </head>
-
 <body>
 <div class="app">
-  <div class="card top">
+  <div class="top">
     <strong id="dateLabel"></strong>
-    <button class="btn" id="addSubjectBtn">+ Add Subject</button>
+    <button class="btn holiday" id="holidayBtn">Holiday</button>
   </div>
 
-  <div id="subjects"></div>
+  <div class="add-subject">
+    <input type="text" id="subjectInput" placeholder="Add subject">
+    <button id="addSubjectBtn">+</button>
+  </div>
+
+  <div class="subjects" id="subjects"></div>
 </div>
 
 <script>
-const today=new Date();
-const key=today.toISOString().slice(0,10);
+const today = new Date();
+const key = today.toISOString().slice(0,10);
 
-// Load data from localStorage
-let store = JSON.parse(localStorage.getItem("attendance")||"{}");
-store[key] = store[key] || { subjects: {} };
+let store = JSON.parse(localStorage.getItem("attendance") || "{}");
+store[key] = store[key] || { holiday:false, subjects:{} };
 
 const dateLabel = document.getElementById("dateLabel");
 dateLabel.textContent = today.toDateString();
 
 const subjectsDiv = document.getElementById("subjects");
 const addSubjectBtn = document.getElementById("addSubjectBtn");
+const subjectInput = document.getElementById("subjectInput");
+const holidayBtn = document.getElementById("holidayBtn");
 
-function save() { localStorage.setItem("attendance", JSON.stringify(store)); }
+function save(){localStorage.setItem("attendance", JSON.stringify(store));}
 
-function render() {
+function render(){
+  holidayBtn.classList.toggle("active", store[key].holiday);
   subjectsDiv.innerHTML = '';
   const subjects = store[key].subjects;
-  for(const subj in subjects) {
+  for(const subj in subjects){
     const data = subjects[subj];
-
     const card = document.createElement('div');
-    card.className = 'card subject';
+    card.className = 'card';
 
-    const name = document.createElement('span');
+    const name = document.createElement('div');
     name.className = 'subject-name';
     name.textContent = subj;
 
-    const statDiv = document.createElement('div');
-    statDiv.className = 'actions';
+    const actions = document.createElement('div');
+    actions.className = 'subject-actions';
 
-    const holidayBtn = document.createElement('button');
-    holidayBtn.className = 'btn holiday';
-    holidayBtn.textContent = 'Holiday';
-    holidayBtn.classList.toggle('active', data.holiday);
+    const pBtn = document.createElement('button');
+    pBtn.textContent = 'P'; pBtn.className='p';
+    pBtn.classList.toggle('disabled', data.status || store[key].holiday);
+    pBtn.onclick = () => { data.status='P'; save(); render(); }
 
-    const presentBtn = document.createElement('button');
-    presentBtn.className = 'p';
-    presentBtn.textContent = 'P';
-    presentBtn.classList.toggle('disabled', data.status || data.holiday);
+    const aBtn = document.createElement('button');
+    aBtn.textContent = 'A'; aBtn.className='a';
+    aBtn.classList.toggle('disabled', data.status || store[key].holiday);
+    aBtn.onclick = () => { data.status='A'; save(); render(); }
 
-    const absentBtn = document.createElement('button');
-    absentBtn.className = 'a';
-    absentBtn.textContent = 'A';
-    absentBtn.classList.toggle('disabled', data.status || data.holiday);
+    const uBtn = document.createElement('button');
+    uBtn.textContent = '↺'; uBtn.className='u';
+    uBtn.classList.toggle('disabled', !data.status || store[key].holiday);
+    uBtn.onclick = () => { data.status=null; save(); render(); }
 
-    const undoBtn = document.createElement('button');
-    undoBtn.className = 'u';
-    undoBtn.textContent = '↺';
-    undoBtn.classList.toggle('disabled', !data.status || data.holiday);
-
-    // Event listeners
-    holidayBtn.onclick = () => {
-      data.holiday = !data.holiday;
-      if(data.holiday) data.status = null;
-      save(); render();
-    }
-    presentBtn.onclick = () => { data.status = 'P'; save(); render(); }
-    absentBtn.onclick = () => { data.status = 'A'; save(); render(); }
-    undoBtn.onclick = () => { data.status = null; save(); render(); }
-
-    statDiv.append(presentBtn, absentBtn, undoBtn, holidayBtn);
-    card.append(name, statDiv);
+    actions.append(pBtn, aBtn, uBtn);
+    card.append(name, actions);
     subjectsDiv.appendChild(card);
   }
 }
 
-addSubjectBtn.onclick = () => {
-  const name = prompt("Enter subject name:");
+// Add subject with input
+function addSubject(){
+  const name = subjectInput.value.trim();
   if(!name) return;
-  store[key].subjects[name] = { status:null, holiday:false };
+  store[key].subjects[name] = { status:null };
+  subjectInput.value = '';
+  save(); render();
+}
+
+addSubjectBtn.onclick = addSubject;
+subjectInput.addEventListener('keypress', e => { if(e.key==='Enter') addSubject(); });
+
+// Toggle global holiday
+holidayBtn.onclick = () => {
+  store[key].holiday = !store[key].holiday;
+  if(store[key].holiday){
+    for(let s in store[key].subjects){
+      store[key].subjects[s].status=null;
+    }
+  }
   save(); render();
 }
 
