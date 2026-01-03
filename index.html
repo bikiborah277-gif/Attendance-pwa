@@ -2,241 +2,200 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Attendance App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Attendance PWA</title>
 
 <style>
-* { box-sizing: border-box; font-family: system-ui, sans-serif; }
-
-body {
-  margin: 0;
-  background: #f2f2f2;
-  padding: 12px;
+:root{
+  --glass: rgba(255,255,255,0.18);
+  --blur: blur(14px);
 }
-
-.app {
-  background: white;
-  border-radius: 20px;
-  padding: 16px;
-  max-width: 420px;
-  margin: auto;
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:#0f172a;
+  color:white;
+  display:flex;
+  justify-content:center;
 }
-
-h1 {
-  text-align: center;
-  margin: 4px 0 10px;
+.app{
+  width:100%;
+  max-width:420px;
+  padding:14px;
 }
-
-select, input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid #ccc;
-  margin-bottom: 8px;
+.card{
+  background:var(--glass);
+  backdrop-filter:var(--blur);
+  border-radius:20px;
+  padding:16px;
+  margin-bottom:14px;
 }
-
-button {
-  border: none;
-  border-radius: 14px;
-  padding: 12px;
-  font-size: 16px;
-  background: rgba(255,255,255,0.5);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-  transition: transform 0.1s;
+h2{
+  margin:0 0 10px;
+  font-size:18px;
 }
-
-button:active {
-  transform: scale(0.94);
+.stats{
+  display:flex;
+  justify-content:space-between;
+  font-size:14px;
+  opacity:.9;
 }
-
-.buttons {
-  display: grid;
-  grid-template-columns: repeat(4,1fr);
-  gap: 8px;
-  margin: 10px 0;
+.buttons{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
 }
-
-.present { background:#c8f7c5; }
-.absent { background:#f7c5c5; }
-.holiday { background:#ffe2a8; }
-.undo { background:#ddd; }
-
-.calendar {
-  display: grid;
-  grid-template-columns: repeat(7,1fr);
-  gap: 6px;
-  margin-top: 10px;
+button{
+  flex:1;
+  padding:14px;
+  border:none;
+  border-radius:16px;
+  background:rgba(255,255,255,0.25);
+  color:white;
+  font-size:15px;
+  backdrop-filter:var(--blur);
+  transition:transform .1s, background .2s;
 }
-
-.day-name {
-  text-align: center;
-  font-size: 12px;
-  opacity: 0.6;
+button:active{
+  transform:scale(.94);
+  background:rgba(255,255,255,0.4);
 }
-
-.date {
-  padding: 10px;
-  border-radius: 10px;
-  background: #eee;
-  text-align: center;
-  cursor: pointer;
+button:disabled{
+  opacity:.4;
 }
-
-.date.selected { outline: 2px solid black; }
-.date.present { background:#9be79b; }
-.date.absent { background:#f39a9a; }
-.date.holiday { background:#f5c36a; }
-
-.history {
-  margin-top: 12px;
-  max-height: 160px;
-  overflow-y: auto;
-  font-size: 14px;
+.calendar{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+  font-size:12px;
 }
-
-.history div {
-  padding: 6px 0;
-  border-bottom: 1px solid #eee;
+.cal-header{
+  text-align:center;
+  opacity:.7;
 }
+.day{
+  text-align:center;
+  padding:8px 0;
+  border-radius:10px;
+}
+.today{
+  outline:1px solid #38bdf8;
+}
+.P{ background:#22c55e; }
+.A{ background:#ef4444; }
+.H{ background:#f59e0b; }
 </style>
 </head>
 
 <body>
-
 <div class="app">
-  <h1 id="monthTitle"></h1>
 
-  <select id="subjectSelect"></select>
-  <input id="newSubject" placeholder="Add subject">
-  
-  <div class="buttons">
-    <button class="present" onclick="mark('present')">Present</button>
-    <button class="absent" onclick="mark('absent')">Absent</button>
-    <button class="holiday" onclick="mark('holiday')">Holiday</button>
-    <button class="undo" onclick="undo()">Undo</button>
+<div class="card">
+  <h2 id="todayText"></h2>
+  <div class="stats">
+    <div>Present: <span id="pCount">0</span></div>
+    <div>Absent: <span id="aCount">0</span></div>
   </div>
 
-  <div class="calendar" id="calendar"></div>
+  <div class="buttons">
+    <button id="presentBtn">Present</button>
+    <button id="absentBtn">Absent</button>
+    <button id="holidayBtn">Holiday</button>
+  </div>
+</div>
 
-  <div class="history" id="history"></div>
+<div class="card">
+  <h2>Calendar</h2>
+  <div class="calendar" id="calendar"></div>
+</div>
+
 </div>
 
 <script>
-let attendance = JSON.parse(localStorage.getItem("attendance") || "{}");
-let subjects = JSON.parse(localStorage.getItem("subjects") || '["General"]');
+const data = JSON.parse(localStorage.getItem("attendance")||"{}");
+const holidays = JSON.parse(localStorage.getItem("holidays")||"{}");
 
-let today = new Date();
-let year = today.getFullYear();
-let month = today.getMonth();
-let selectedDate = today.toISOString().slice(0,10);
+const today = new Date();
+const todayStr = today.toISOString().split("T")[0];
+const isSunday = today.getDay()===0;
 
-const subjectSelect = document.getElementById("subjectSelect");
-const calendar = document.getElementById("calendar");
-const historyDiv = document.getElementById("history");
+document.getElementById("todayText").textContent =
+  today.toDateString();
 
-function save() {
-  localStorage.setItem("attendance", JSON.stringify(attendance));
-  localStorage.setItem("subjects", JSON.stringify(subjects));
+function save(){
+  localStorage.setItem("attendance",JSON.stringify(data));
+  localStorage.setItem("holidays",JSON.stringify(holidays));
 }
 
-function loadSubjects() {
-  subjectSelect.innerHTML = "";
-  subjects.forEach(s => {
-    let o = document.createElement("option");
-    o.textContent = s;
-    subjectSelect.appendChild(o);
-  });
-}
-
-document.getElementById("newSubject").addEventListener("change", e => {
-  if(e.target.value){
-    subjects.push(e.target.value);
-    attendance[e.target.value] = {};
-    e.target.value = "";
-    save();
-    loadSubjects();
+function updateStats(){
+  let p=0,a=0;
+  for(const d in data){
+    if(data[d]==="P") p++;
+    if(data[d]==="A") a++;
   }
-});
+  pCount.textContent=p;
+  aCount.textContent=a;
+}
 
-function buildCalendar() {
-  calendar.innerHTML = "";
-  const names = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  names.forEach(d=>{
-    let n=document.createElement("div");
-    n.className="day-name";
-    n.textContent=d;
-    calendar.appendChild(n);
+function updateButtons(){
+  const marked = data[todayStr];
+  const isHoliday = holidays[todayStr] || isSunday;
+  presentBtn.disabled = absentBtn.disabled = isHoliday || marked;
+}
+
+presentBtn.onclick=()=>{
+  data[todayStr]="P"; save(); render();
+};
+absentBtn.onclick=()=>{
+  data[todayStr]="A"; save(); render();
+};
+holidayBtn.onclick=()=>{
+  holidays[todayStr]=true;
+  save(); render();
+};
+
+function renderCalendar(){
+  const cal = document.getElementById("calendar");
+  cal.innerHTML="";
+
+  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d=>{
+    const h=document.createElement("div");
+    h.textContent=d;
+    h.className="cal-header";
+    cal.appendChild(h);
   });
 
-  let first = new Date(year,month,1).getDay();
-  let days = new Date(year,month+1,0).getDate();
+  const year=today.getFullYear();
+  const month=today.getMonth();
+  const first=new Date(year,month,1).getDay();
+  const days=new Date(year,month+1,0).getDate();
 
-  for(let i=0;i<first;i++) calendar.appendChild(document.createElement("div"));
-
-  for(let d=1; d<=days; d++){
-    let date = new Date(year,month,d);
-    let key = date.toISOString().slice(0,10);
-    let div = document.createElement("div");
-    div.className = "date";
-    div.textContent = d;
-
-    let subj = subjectSelect.value;
-    let status = attendance[subj]?.[key];
-
-    if(date.getDay()===0) status="holiday";
-
-    if(status) div.classList.add(status);
-    if(key===selectedDate) div.classList.add("selected");
-
-    div.onclick = ()=>{
-      selectedDate = key;
-      buildCalendar();
-      buildHistory();
-    };
-
-    calendar.appendChild(div);
+  for(let i=0;i<first;i++){
+    cal.appendChild(document.createElement("div"));
   }
 
-  document.getElementById("monthTitle").textContent =
-    new Date(year,month).toLocaleString("default",{month:"long",year:"numeric"});
+  for(let d=1;d<=days;d++){
+    const cell=document.createElement("div");
+    cell.className="day";
+    const date=new Date(year,month,d);
+    const key=date.toISOString().split("T")[0];
+    cell.textContent=d;
+
+    if(key===todayStr) cell.classList.add("today");
+    if(date.getDay()===0 || holidays[key]) cell.classList.add("H");
+    if(data[key]) cell.classList.add(data[key]);
+
+    cal.appendChild(cell);
+  }
 }
 
-function mark(type){
-  let subj = subjectSelect.value;
-  if(!attendance[subj]) attendance[subj]={};
-
-  let day = new Date(selectedDate).getDay();
-  if(day===0 && type!=="holiday") return;
-
-  attendance[subj][selectedDate]=type;
-  save();
-  buildCalendar();
-  buildHistory();
+function render(){
+  updateButtons();
+  updateStats();
+  renderCalendar();
 }
 
-function undo(){
-  let subj = subjectSelect.value;
-  delete attendance[subj]?.[selectedDate];
-  save();
-  buildCalendar();
-  buildHistory();
-}
-
-function buildHistory(){
-  historyDiv.innerHTML="";
-  let subj = subjectSelect.value;
-  let records = attendance[subj]||{};
-  Object.keys(records).sort().reverse().forEach(d=>{
-    let div=document.createElement("div");
-    div.textContent = `${d} → ${records[d]}`;
-    historyDiv.appendChild(div);
-  });
-}
-
-loadSubjects();
-buildCalendar();
-buildHistory();
+render();
 </script>
 
 </body>
