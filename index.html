@@ -10,7 +10,7 @@
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:linear-gradient(160deg,#0f172a,#020617);
+  background:linear-gradient(140deg,#0f172a,#020617);
   color:#fff;
   min-height:100vh;
 }
@@ -19,12 +19,56 @@ body{
   margin:auto;
   padding:16px;
 }
+
+/* ---------- GLASS CORE ---------- */
+.glass{
+  position:relative;
+  border:1px solid rgba(255,255,255,.25);
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,.35),
+    rgba(255,255,255,.08)
+  );
+  backdrop-filter:blur(18px) saturate(180%);
+  -webkit-backdrop-filter:blur(18px) saturate(180%);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.6),
+    inset 0 -1px 1px rgba(0,0,0,.2),
+    0 10px 25px rgba(0,0,0,.25);
+}
+
+.glass::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(
+    120deg,
+    rgba(255,255,255,.6),
+    rgba(255,255,255,0)
+  );
+  opacity:.35;
+  pointer-events:none;
+}
+
+/* ---------- HEADER ---------- */
 .top{
   display:flex;
   justify-content:space-between;
   align-items:center;
   margin-bottom:14px;
 }
+.holiday-btn{
+  padding:10px 18px;
+  border-radius:999px;
+  color:white;
+}
+.holiday-btn.active{
+  background:#f59e0b;
+  color:#000;
+}
+
+/* ---------- ADD SUBJECT ---------- */
 .add-subject{
   display:flex;
   gap:8px;
@@ -33,69 +77,60 @@ body{
 .add-subject input{
   flex:1;
   padding:12px 16px;
-  border:none;
-  border-radius:18px;
-  background:rgba(255,255,255,0.08);
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.08);
   color:white;
   outline:none;
-  backdrop-filter:blur(10px);
+  backdrop-filter:blur(14px);
 }
 .add-subject button{
-  width:40px;height:40px;
+  width:42px;height:42px;
   border-radius:50%;
-  border:none;
-  font-size:20px;
-  background:rgba(255,255,255,0.1);
   color:white;
-  backdrop-filter:blur(10px);
-}
-.btn.holiday{
-  border:none;
-  border-radius:18px;
-  padding:10px 16px;
-  background:rgba(255,255,255,0.08);
-  color:white;
-  backdrop-filter:blur(10px);
-}
-.btn.holiday.active{
-  background:#f59e0b;
-  color:#000;
 }
 
+/* ---------- SUBJECT CARD ---------- */
 .card{
-  background:rgba(255,255,255,0.05);
-  border-radius:22px;
   padding:14px 16px;
+  border-radius:24px;
   margin-bottom:12px;
   display:flex;
   justify-content:space-between;
   align-items:center;
 }
-
-.subject-name{
-  font-weight:500;
-}
+.subject-name{font-weight:500;}
 .stats{
   display:flex;
   gap:8px;
-  margin-top:4px;
   font-size:12px;
   opacity:.85;
 }
 .stats span{
   padding:4px 8px;
-  border-radius:10px;
-  background:rgba(255,255,255,0.08);
+  border-radius:12px;
+  background:rgba(255,255,255,.12);
 }
 
-.actions button{
-  width:34px;height:34px;
+/* ---------- ACTION BUTTONS ---------- */
+.actions{
+  display:flex;
+}
+.circle{
+  width:36px;
+  height:36px;
   border-radius:50%;
-  border:none;
+  display:grid;
+  place-items:center;
   margin-left:6px;
+  border:1px solid rgba(255,255,255,.25);
+  backdrop-filter:blur(14px);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.6),
+    inset 0 -1px 1px rgba(0,0,0,.25),
+    0 8px 18px rgba(0,0,0,.25);
   font-weight:bold;
   color:white;
-  backdrop-filter:blur(8px);
 }
 .p{background:rgba(34,197,94,.8);}
 .a{background:rgba(239,68,68,.8);}
@@ -109,12 +144,12 @@ body{
 
   <div class="top">
     <strong id="dateLabel"></strong>
-    <button class="btn holiday" id="holidayBtn">Holiday</button>
+    <button class="glass holiday-btn" id="holidayBtn">Holiday</button>
   </div>
 
   <div class="add-subject">
     <input id="subjectInput" placeholder="Add subject">
-    <button id="addSubjectBtn">+</button>
+    <button class="glass" id="addBtn">+</button>
   </div>
 
   <div id="subjects"></div>
@@ -124,30 +159,29 @@ body{
 const today = new Date();
 const dayKey = today.toISOString().slice(0,10);
 
-let store = JSON.parse(localStorage.getItem("attendance") || "{}");
+let store = JSON.parse(localStorage.getItem("attendance")||"{}");
 store[dayKey] ??= { holiday:false, subjects:{} };
 
-const dateLabel = document.getElementById("dateLabel");
 dateLabel.textContent = today.toDateString();
 
 const subjectsDiv = document.getElementById("subjects");
 const subjectInput = document.getElementById("subjectInput");
-const addBtn = document.getElementById("addSubjectBtn");
+const addBtn = document.getElementById("addBtn");
 const holidayBtn = document.getElementById("holidayBtn");
 
 function save(){
-  localStorage.setItem("attendance", JSON.stringify(store));
+  localStorage.setItem("attendance",JSON.stringify(store));
 }
 
 function render(){
-  holidayBtn.classList.toggle("active", store[dayKey].holiday);
-  subjectsDiv.innerHTML = "";
+  holidayBtn.classList.toggle("active",store[dayKey].holiday);
+  subjectsDiv.innerHTML="";
 
   for(const name in store[dayKey].subjects){
     const s = store[dayKey].subjects[name];
 
     const card = document.createElement("div");
-    card.className = "card";
+    card.className="glass card";
 
     const left = document.createElement("div");
     left.innerHTML = `
@@ -159,44 +193,30 @@ function render(){
     `;
 
     const actions = document.createElement("div");
-    actions.className = "actions";
+    actions.className="actions";
 
-    const pBtn = document.createElement("button");
-    pBtn.textContent = "P";
-    pBtn.className = "p";
-    pBtn.classList.toggle("disabled", s.today || store[dayKey].holiday);
-    pBtn.onclick = () => {
-      s.p++;
-      s.last = "P";
-      s.today = true;
+    const p=document.createElement("div");
+    p.textContent="P"; p.className="circle p";
+    p.classList.toggle("disabled",s.today||store[dayKey].holiday);
+    p.onclick=()=>{s.p++;s.last="P";s.today=true;save();render();};
+
+    const a=document.createElement("div");
+    a.textContent="A"; a.className="circle a";
+    a.classList.toggle("disabled",s.today||store[dayKey].holiday);
+    a.onclick=()=>{s.a++;s.last="A";s.today=true;save();render();};
+
+    const u=document.createElement("div");
+    u.textContent="↺"; u.className="circle u";
+    u.classList.toggle("disabled",!s.today||store[dayKey].holiday);
+    u.onclick=()=>{
+      if(s.last==="P")s.p--;
+      if(s.last==="A")s.a--;
+      s.today=false; s.last=null;
       save(); render();
     };
 
-    const aBtn = document.createElement("button");
-    aBtn.textContent = "A";
-    aBtn.className = "a";
-    aBtn.classList.toggle("disabled", s.today || store[dayKey].holiday);
-    aBtn.onclick = () => {
-      s.a++;
-      s.last = "A";
-      s.today = true;
-      save(); render();
-    };
-
-    const uBtn = document.createElement("button");
-    uBtn.textContent = "↺";
-    uBtn.className = "u";
-    uBtn.classList.toggle("disabled", !s.today || store[dayKey].holiday);
-    uBtn.onclick = () => {
-      if(s.last === "P") s.p--;
-      if(s.last === "A") s.a--;
-      s.today = false;
-      s.last = null;
-      save(); render();
-    };
-
-    actions.append(pBtn, aBtn, uBtn);
-    card.append(left, actions);
+    actions.append(p,a,u);
+    card.append(left,actions);
     subjectsDiv.appendChild(card);
   }
 }
@@ -204,21 +224,15 @@ function render(){
 function addSubject(){
   const name = subjectInput.value.trim();
   if(!name || store[dayKey].subjects[name]) return;
-
-  store[dayKey].subjects[name] = {
-    p:0,
-    a:0,
-    today:false,
-    last:null
-  };
-  subjectInput.value = "";
+  store[dayKey].subjects[name]={p:0,a:0,today:false,last:null};
+  subjectInput.value="";
   save(); render();
 }
 
 addBtn.onclick = addSubject;
-subjectInput.onkeydown = e => e.key === "Enter" && addSubject();
+subjectInput.onkeydown = e => e.key==="Enter" && addSubject();
 
-holidayBtn.onclick = () => {
+holidayBtn.onclick = ()=>{
   store[dayKey].holiday = !store[dayKey].holiday;
   save(); render();
 };
